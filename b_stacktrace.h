@@ -1,7 +1,7 @@
 #if !defined(B_STACKTRACE_INCLUDED)
 #define B_STACKTRACE_INCLUDED (1)
 /*
-b_stacktrace.h -- a cross-platform stack-trace generator
+b_stacktrace v0.10 -- a cross-platform stack-trace generator
 URL: https://github.com/iboB/b_stacktrace
 
 Usage
@@ -19,6 +19,11 @@ Config
 ======
 
 #define B_STACKTRACE_API to custom export symbols to export the library functions from a shared lib
+
+Revision History
+================
+
+* 0.10 (2020-12-07) Initial public release. Alpha version
 
 MIT License
 ===========
@@ -52,7 +57,15 @@ SOFTWARE.
 extern "C" {
 #endif
 
+/*
+    Returns a stack-trace string from the point of view of the caller.
+    The string is allocated with `malloc` and needs to be freed with `free`
+*/
 B_STACKTRACE_API char* b_stacktrace_get();
+
+/* version */
+#define B_STACKTRACE_VER_MAJOR 0
+#define B_STACKTRACE_VER_MINOR 10
 
 #ifdef __cplusplus
 }
