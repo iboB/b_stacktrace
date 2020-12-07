@@ -69,8 +69,7 @@ typedef struct print_buf {
     int size;
 } print_buf;
 
-static print_buf buf_init()
-{
+static print_buf buf_init() {
     print_buf ret = {
         (char*) malloc(1024),
         0,
@@ -79,8 +78,7 @@ static print_buf buf_init()
     return ret;
 }
 
-static void buf_printf(print_buf* b, const char* fmt, ...)
-{
+static void buf_printf(print_buf* b, const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
     const int len = vsnprintf(NULL, 0, fmt, args) + 1;
@@ -88,8 +86,7 @@ static void buf_printf(print_buf* b, const char* fmt, ...)
 
     const int new_end = b->pos + len;
 
-    if (new_end > b->size)
-    {
+    if (new_end > b->size) {
         while (new_end > b->size) b->size *= 2;
         b->buf = (char*)realloc(b->buf, b->size);
     }
@@ -110,8 +107,7 @@ static void buf_printf(print_buf* b, const char* fmt, ...)
 
 static int SymInitialize_called = 0;
 
-char* b_stacktrace_get()
-{
+char* b_stacktrace_get() {
     HANDLE process = GetCurrentProcess();
     HANDLE thread = GetCurrentThread();
     CONTEXT context;
@@ -162,20 +158,17 @@ char* b_stacktrace_get()
     symbol->SizeOfStruct = sizeof(IMAGEHLP_SYMBOL64);
     symbol->MaxNameLength = 1024;
 
-    while (1)
-    {
+    while (1) {
         IMAGEHLP_LINE64 lineData;
         DWORD lineOffset = 0;
         DWORD64 symOffset = 0;
 
-        if (!StackWalk64(imageType, process, thread, &frame, &context, NULL, SymFunctionTableAccess64, SymGetModuleBase64, NULL))
-        {
+        if (!StackWalk64(imageType, process, thread, &frame, &context, NULL, SymFunctionTableAccess64, SymGetModuleBase64, NULL)) {
             buf_printf(&out, "StackWalk64 error: %d @ %p\n", GetLastError(), frame.AddrPC.Offset);
             break;
         }
 
-        if (frame.AddrPC.Offset == frame.AddrReturn.Offset)
-        {
+        if (frame.AddrPC.Offset == frame.AddrReturn.Offset) {
             buf_printf(&out, "Stack overflow @ %p\n", frame.AddrPC.Offset);
             break;
         }
@@ -183,17 +176,13 @@ char* b_stacktrace_get()
         SymGetLineFromAddr64(process, frame.AddrPC.Offset, &lineOffset, &lineData);
         buf_printf(&out, "%s(%d): ", lineData.FileName, lineData.LineNumber);
 
-        if (SymGetSymFromAddr64(process, frame.AddrPC.Offset, &symOffset, symbol))
-        {
+        if (SymGetSymFromAddr64(process, frame.AddrPC.Offset, &symOffset, symbol)) {
             buf_printf(&out, "%s\n", symbol->Name);
-        }
-        else
-        {
+        } else {
             buf_printf(&out, " Unkown symbol @ %p\n", frame.AddrPC.Offset);
         }
 
-        if (frame.AddrReturn.Offset == 0)
-        {
+        if (frame.AddrReturn.Offset == 0) {
             break;
         }
     }
@@ -208,8 +197,7 @@ char* b_stacktrace_get()
 #include <unistd.h>
 #include <dlfcn.h>
 
-char* b_stacktrace_get()
-{
+char* b_stacktrace_get() {
     void* trace[128];
     int traceSize = backtrace(trace, 128);
     char** messages = backtrace_symbols(trace, traceSize);
@@ -231,15 +219,13 @@ char* b_stacktrace_get()
 #include <dlfcn.h>
 #include <string.h>
 
-char* b_stacktrace_get()
-{
+char* b_stacktrace_get() {
     void* trace[1024];
     const int traceSize = backtrace(trace, 1024);
     char** messages = backtrace_symbols(trace, traceSize);
     print_buf out = buf_init();
 
-    for (int i=0; i<traceSize; ++i)
-    {
+    for (int i=0; i<traceSize; ++i) {
         char* msg = messages[i];
 
         /* calculate load offset */
@@ -261,22 +247,17 @@ char* b_stacktrace_get()
             snprintf(cmd, 1024, "addr2line -e %s -f -C -p %p", messages[i], (void*)((char*)trace[i] - (char*)info.dli_fbase));
 
             fp = popen(cmd, "r");
-            if (!fp)
-            {
+            if (!fp) {
                 buf_printf(&out, "Failed to generate trace further...\n");
                 break;
             }
 
-            while (fgets(line, sizeof(line), fp))
-            {
+            while (fgets(line, sizeof(line), fp)) {
                 buf_printf(&out, "%s: ", messages[i]);
-                if (strstr(line, "?? "))
-                {
+                if (strstr(line, "?? ")) {
                     /* just output address if nothing can be found */
                     buf_printf(&out, "%p\n", trace[i]);
-                }
-                else
-                {
+                } else {
                     buf_printf(&out, "%s", line);
                 }
             }
@@ -290,8 +271,7 @@ char* b_stacktrace_get()
 }
 #else
 /* noop implementation */
-char* b_stacktrace_get()
-{
+char* b_stacktrace_get() {
     print_buf out = buf_init();
     buf_printf("b_stacktrace: unsupported platform\n");
     return out.buf;

@@ -1,12 +1,10 @@
 #define B_STACKTRACE_IMPL
 #include "../b_stacktrace.h"
 
-void foo()
-{
+void foo() {
     printf("%s\n", b_stacktrace_get());
 }
 
-int main()
-{
+int main() {
     foo();
 }
