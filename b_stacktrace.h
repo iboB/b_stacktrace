@@ -55,6 +55,9 @@ B_STACKTRACE_API char* b_stacktrace_get();
 
 #if defined(B_STACKTRACE_IMPL)
 
+#if defined(__linux__) && !defined(_GNU_SOURCE)
+#define _GNU_SOURCE
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -76,25 +79,23 @@ static print_buf buf_init()
     return ret;
 }
 
-static void buf_vprintf(print_buf* b, const char* fmt, va_list args)
+static void buf_printf(print_buf* b, const char* fmt, ...)
 {
+    va_list args;
+    va_start(args, fmt);
     const int len = vsnprintf(NULL, 0, fmt, args) + 1;
+    va_end(args);
+
     const int new_end = b->pos + len;
 
     if (new_end > b->size)
     {
         while (new_end > b->size) b->size *= 2;
-        b->buf = realloc(b->buf, b->size);
+        b->buf = (char*)realloc(b->buf, b->size);
     }
 
-    b->pos += vsnprintf(b->buf + b->pos, len, fmt, args);
-}
-
-static void buf_printf(print_buf* b, const char* fmt, ...)
-{
-    va_list args;
     va_start(args, fmt);
-    buf_vprintf(b, fmt, args);
+    b->pos += vsnprintf(b->buf + b->pos, len, fmt, args);
     va_end(args);
 }
 
@@ -202,15 +203,101 @@ char* b_stacktrace_get()
 }
 
 #elif defined(__APPLE__)
+
+#include <execinfo.h>
+#include <unistd.h>
+#include <dlfcn.h>
+
+char* b_stacktrace_get()
+{
+    void* trace[128];
+    int traceSize = backtrace(trace, 128);
+    char** messages = backtrace_symbols(trace, traceSize);
+    print_buf out = buf_init();
+    *out.buf = 0;
+
+    for (int i = 0; i<traceSize; ++i) {
+        buf_printf(&out, "%s\n", messages[i]);
+    }
+
+    return out.buf;
+}
+
 #elif defined(__linux__)
+
+#include <execinfo.h>
+#include <ucontext.h>
+#include <unistd.h>
+#include <dlfcn.h>
+#include <string.h>
+
+char* b_stacktrace_get()
+{
+    void* trace[1024];
+    const int traceSize = backtrace(trace, 1024);
+    char** messages = backtrace_symbols(trace, traceSize);
+    print_buf out = buf_init();
+
+    for (int i=0; i<traceSize; ++i)
+    {
+        char* msg = messages[i];
+
+        /* calculate load offset */
+        Dl_info info;
+        dladdr(trace[i], &info);
+        if (info.dli_fbase == (void*)0x400000) {
+            /* address from executable, so don't offset */
+            info.dli_fbase = NULL;
+        }
+
+        while (*msg && *msg != '(') ++msg;
+        *msg = 0;
+
+        {
+            char cmd[1024];
+            char line[2048];
+
+            FILE* fp;
+            snprintf(cmd, 1024, "addr2line -e %s -f -C -p %p", messages[i], (void*)((char*)trace[i] - (char*)info.dli_fbase));
+
+            fp = popen(cmd, "r");
+            if (!fp)
+            {
+                buf_printf(&out, "Failed to generate trace further...\n");
+                break;
+            }
+
+            while (fgets(line, sizeof(line), fp))
+            {
+                buf_printf(&out, "%s: ", messages[i]);
+                if (strstr(line, "?? "))
+                {
+                    /* just output address if nothing can be found */
+                    buf_printf(&out, "%p\n", trace[i]);
+                }
+                else
+                {
+                    buf_printf(&out, "%s", line);
+                }
+            }
+
+            pclose(fp);
+        }
+    }
+
+    free(messages);
+    return out.buf;
+}
 #else
 /* noop implementation */
 char* b_stacktrace_get()
 {
-    return (char*)calloc(1, 1);
+    print_buf out = buf_init();
+    buf_printf("b_stacktrace: unsupported platform\n");
+    return out.buf;
 }
-#endif
+#endif /* platform */
 
-# endif /* B_STACKTRACE_IMPL */
+#endif /* B_STACKTRACE_IMPL */
 #endif /* B_STACKTRACE_INCLUDED */
 
