@@ -1,10 +1,20 @@
 #define B_STACKTRACE_IMPL
 #include "../b_stacktrace.h"
 
-void foo() {
-    printf("%s\n", b_stacktrace_get());
+void second_level(int n) {
+    char* trace = b_stacktrace_get();
+
+    printf("Number of arguments to program: %d\n", n);
+
+    puts("Stacktrace:\n");
+    puts(trace);
+    free(trace);
 }
 
-int main() {
-    foo();
+void first_level(int n) {
+    second_level(n);
+}
+
+int main(int argc, char** argv) {
+    first_level(argc);
 }

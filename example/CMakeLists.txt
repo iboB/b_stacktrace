@@ -7,6 +7,11 @@ target_link_libraries(trace PUBLIC
     ${CMAKE_DL_LIBS}
 )
 
+add_executable(trace-cpp trace.cpp)
+target_link_libraries(trace-cpp PUBLIC
+    ${CMAKE_DL_LIBS}
+)
+
 add_executable(crash crash.c)
 target_link_libraries(crash PUBLIC
     ${CMAKE_DL_LIBS}
