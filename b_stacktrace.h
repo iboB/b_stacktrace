@@ -1,7 +1,7 @@
 #if !defined(B_STACKTRACE_INCLUDED)
 #define B_STACKTRACE_INCLUDED (1)
 /*
-b_stacktrace.h -- a cross-platform stack-trace generator and crash handler for C89
+b_stacktrace.h -- a cross-platform stack-trace generator
 URL: https://github.com/iboB/b_stacktrace
 
 Usage
@@ -14,6 +14,11 @@ Usage
 * char* b_stacktrace_get();
     Returns a string (composed of multiple lines) which represents the stack trace
     The string is allocated with `malloc` and needs to be freed with `free`
+
+Config
+======
+
+#define B_STACKTRACE_API to custom export symbols to export the library functions from a shared lib
 
 MIT License
 ===========
