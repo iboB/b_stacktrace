@@ -226,6 +226,7 @@ char* b_stacktrace_get() {
         buf_printf(&out, "%s\n", messages[i]);
     }
 
+    free(messages);
     return out.buf;
 }
 
