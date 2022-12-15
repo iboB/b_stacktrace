@@ -262,7 +262,7 @@ char* b_stacktrace_get() {
             char line[2048];
 
             FILE* fp;
-            snprintf(cmd, 1024, "addr2line -e %s -f -C -p %p", messages[i], (void*)((char*)trace[i] - (char*)info.dli_fbase));
+            snprintf(cmd, 1024, "addr2line -e %s -f -C -p %p 2>/dev/null", messages[i], (void*)((char*)trace[i] - (char*)info.dli_fbase));
 
             fp = popen(cmd, "r");
             if (!fp) {
