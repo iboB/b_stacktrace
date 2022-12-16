@@ -8,7 +8,7 @@ struct base
     virtual ~base() {}
 
     void print_trace() {
-        std::cout << b_stacktrace_get() << '\n';
+        std::cout << b_stacktrace_get_string() << '\n';
     }
 
     virtual void proxy() = 0;

@@ -5,7 +5,7 @@
 #if defined(_WIN32)
 void my_handler(int signal) {
     printf("signal: %d\n", signal);
-    puts(b_stacktrace_get());
+    puts(b_stacktrace_get_string());
     exit(1);
 }
 void register_handler() {
@@ -20,7 +20,7 @@ void my_handler(int signal, siginfo_t* info, void* context) {
         printf(" at addr: %p", info->si_addr);
     }
     puts("");
-    puts(b_stacktrace_get());
+    puts(b_stacktrace_get_string());
     exit(1);
 }
 void register_handler() {
