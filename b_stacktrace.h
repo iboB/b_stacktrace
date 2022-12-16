@@ -1,7 +1,8 @@
 #if !defined(B_STACKTRACE_INCLUDED)
 #define B_STACKTRACE_INCLUDED (1)
 /*
-b_stacktrace v0.10 -- a cross-platform stack-trace generator
+b_stacktrace v0.20 -- a cross-platform stack-trace generator
+SPDX-License-Identifier: MIT
 URL: https://github.com/iboB/b_stacktrace
 
 Usage
@@ -11,8 +12,9 @@ Usage
 
 #include "b_stacktrace.h" to get access to the following functions:
 
-* char* b_stacktrace_get();
-    Returns a string (composed of multiple lines) which represents the stack trace
+* char* b_stacktrace_get_string();
+    Returns a human-readable stack-trace string from the point of view of the
+    caller.
     The string is allocated with `malloc` and needs to be freed with `free`
 
 Config
@@ -23,12 +25,15 @@ Config
 Revision History
 ================
 
+* 0.20 (2022-12-xx) Beta.
+                    Expanded interface
+                    Minor fixes
 * 0.10 (2020-12-07) Initial public release. Alpha version
 
 MIT License
 ===========
 
-Copyright (c) 2020 Borislav Stanimirov
+Copyright (c) 2020-2022 Borislav Stanimirov
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -58,10 +63,29 @@ extern "C" {
 #endif
 
 /*
-    Returns a stack-trace string from the point of view of the caller.
+    A stacktrace handle
+*/
+typedef struct b_stacktrace_tag* b_stacktrace_handle;
+
+/*
+    Returns a stack-trace handle from the point of view of the caller which
+    can be expanded to a string via b_stacktrace_to_string.
+    The handle is allocated with `malloc` and needs to be freed with `free`
+*/
+B_STACKTRACE_API b_stacktrace_handle b_stacktrace_get();
+
+/*
+    Converts a stack-trace handle to a human-readable string.
     The string is allocated with `malloc` and needs to be freed with `free`
 */
-B_STACKTRACE_API char* b_stacktrace_get();
+B_STACKTRACE_API char* b_stacktrace_to_string(b_stacktrace_handle stacktrace);
+
+/*
+    Returns a human-readable stack-trace string from the point of view of the
+    caller.
+    The string is allocated with `malloc` and needs to be freed with `free`
+*/
+B_STACKTRACE_API char* b_stacktrace_get_string(void);
 
 /* version */
 #define B_STACKTRACE_VER_MAJOR 0
@@ -87,7 +111,7 @@ typedef struct print_buf {
     int size;
 } print_buf;
 
-static print_buf buf_init() {
+static print_buf buf_init(void) {
     print_buf ret = {
         (char*) malloc(1024),
         0,
@@ -114,6 +138,15 @@ static void buf_printf(print_buf* b, const char* fmt, ...) {
     va_end(args);
 }
 
+char* b_stacktrace_get_string(void) {
+    b_stacktrace_handle h = b_stacktrace_get();
+    char* ret = b_stacktrace_to_string(h);
+    free(h);
+    return ret;
+}
+
+#define B_STACKTRACE_MAX_DEPTH 1024
+
 #if defined(_WIN32)
 
 #define WIN32_LEAN_AND_MEAN
@@ -123,16 +156,21 @@ static void buf_printf(print_buf* b, const char* fmt, ...) {
 
 #pragma comment(lib, "DbgHelp.lib")
 
+typedef struct stacktrace_entry {
+    DWORD64 AddrPC_Offset;
+    DWORD64 AddrReturn_Offset;
+};
+
 static int SymInitialize_called = 0;
 
-char* b_stacktrace_get() {
+b_stacktrace_handle b_stacktrace_get(void) {
     HANDLE process = GetCurrentProcess();
     HANDLE thread = GetCurrentThread();
     CONTEXT context;
     STACKFRAME64 frame; /* in/out stackframe */
     DWORD imageType;
-    IMAGEHLP_SYMBOL64* symbol = NULL;
-    print_buf out = buf_init();
+    stacktrace_entry* out = (stacktrace_entry*)malloc(B_STACKTRACE_MAX_DEPTH * sizeof(stacktrace_entry));
+    int i = 0;
 
     if (!SymInitialize_called) {
         SymInitialize(process, NULL, TRUE);
@@ -172,14 +210,16 @@ char* b_stacktrace_get() {
     #error "Platform not supported!"
 #endif
 
-    symbol = (IMAGEHLP_SYMBOL64*)malloc(sizeof(IMAGEHLP_SYMBOL64) + 1024);
-    symbol->SizeOfStruct = sizeof(IMAGEHLP_SYMBOL64);
-    symbol->MaxNameLength = 1024;
-
     while (1) {
         IMAGEHLP_LINE64 lineData;
         DWORD lineOffset = 0;
         DWORD64 symOffset = 0;
+        stacktrace_entry* cur = out + i++;
+        if (i == B_STACKTRACE_MAX_DEPTH) {
+            cur->AddrPC_Offset = 0;
+            cur->AddrReturn_Offset = 0;
+            break;
+        }
 
         if (!StackWalk64(imageType, process, thread, &frame, &context, NULL, SymFunctionTableAccess64, SymGetModuleBase64, NULL)) {
             buf_printf(&out, "StackWalk64 error: %d @ %p\n", GetLastError(), frame.AddrPC.Offset);
@@ -205,7 +245,6 @@ char* b_stacktrace_get() {
         }
     }
 
-    free(symbol);
     return out.buf;
 }
 
@@ -215,7 +254,7 @@ char* b_stacktrace_get() {
 #include <unistd.h>
 #include <dlfcn.h>
 
-char* b_stacktrace_get() {
+char* b_stacktrace_get_string(void) {
     void* trace[128];
     int traceSize = backtrace(trace, 128);
     char** messages = backtrace_symbols(trace, traceSize);
@@ -238,7 +277,7 @@ char* b_stacktrace_get() {
 #include <dlfcn.h>
 #include <string.h>
 
-char* b_stacktrace_get() {
+char* b_stacktrace_get_string(void) {
     void* trace[1024];
     const int traceSize = backtrace(trace, 1024);
     char** messages = backtrace_symbols(trace, traceSize);
@@ -290,7 +329,7 @@ char* b_stacktrace_get() {
 }
 #else
 /* noop implementation */
-char* b_stacktrace_get() {
+char* b_stacktrace_get_string(void) {
     print_buf out = buf_init();
     buf_printf("b_stacktrace: unsupported platform\n");
     return out.buf;
