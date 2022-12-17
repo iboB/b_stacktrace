@@ -89,7 +89,7 @@ B_STACKTRACE_API char* b_stacktrace_get_string(void);
 
 /* version */
 #define B_STACKTRACE_VER_MAJOR 0
-#define B_STACKTRACE_VER_MINOR 10
+#define B_STACKTRACE_VER_MINOR 20
 
 #ifdef __cplusplus
 }
@@ -146,6 +146,7 @@ char* b_stacktrace_get_string(void) {
 }
 
 #define B_STACKTRACE_MAX_DEPTH 1024
+#define B_STACKTRACE_ERROR_FLAG ((DWORD64)1 << 63)
 
 #if defined(_WIN32)
 
@@ -156,10 +157,10 @@ char* b_stacktrace_get_string(void) {
 
 #pragma comment(lib, "DbgHelp.lib")
 
-typedef struct stacktrace_entry {
+typedef struct b_stacktrace_entry {
     DWORD64 AddrPC_Offset;
     DWORD64 AddrReturn_Offset;
-};
+} b_stacktrace_entry;
 
 static int SymInitialize_called = 0;
 
@@ -169,7 +170,7 @@ b_stacktrace_handle b_stacktrace_get(void) {
     CONTEXT context;
     STACKFRAME64 frame; /* in/out stackframe */
     DWORD imageType;
-    stacktrace_entry* out = (stacktrace_entry*)malloc(B_STACKTRACE_MAX_DEPTH * sizeof(stacktrace_entry));
+    b_stacktrace_entry* ret = (b_stacktrace_entry*)malloc(B_STACKTRACE_MAX_DEPTH * sizeof(b_stacktrace_entry));
     int i = 0;
 
     if (!SymInitialize_called) {
@@ -211,10 +212,7 @@ b_stacktrace_handle b_stacktrace_get(void) {
 #endif
 
     while (1) {
-        IMAGEHLP_LINE64 lineData;
-        DWORD lineOffset = 0;
-        DWORD64 symOffset = 0;
-        stacktrace_entry* cur = out + i++;
+        b_stacktrace_entry* cur = ret + i++;
         if (i == B_STACKTRACE_MAX_DEPTH) {
             cur->AddrPC_Offset = 0;
             cur->AddrReturn_Offset = 0;
@@ -222,29 +220,65 @@ b_stacktrace_handle b_stacktrace_get(void) {
         }
 
         if (!StackWalk64(imageType, process, thread, &frame, &context, NULL, SymFunctionTableAccess64, SymGetModuleBase64, NULL)) {
-            buf_printf(&out, "StackWalk64 error: %d @ %p\n", GetLastError(), frame.AddrPC.Offset);
+            cur->AddrPC_Offset = frame.AddrPC.Offset;
+            cur->AddrReturn_Offset = B_STACKTRACE_ERROR_FLAG; /* mark error */
+            cur->AddrReturn_Offset |= GetLastError();
             break;
         }
 
-        if (frame.AddrPC.Offset == frame.AddrReturn.Offset) {
-            buf_printf(&out, "Stack overflow @ %p\n", frame.AddrPC.Offset);
-            break;
-        }
-
-        SymGetLineFromAddr64(process, frame.AddrPC.Offset, &lineOffset, &lineData);
-        buf_printf(&out, "%s(%d): ", lineData.FileName, lineData.LineNumber);
-
-        if (SymGetSymFromAddr64(process, frame.AddrPC.Offset, &symOffset, symbol)) {
-            buf_printf(&out, "%s\n", symbol->Name);
-        } else {
-            buf_printf(&out, " Unkown symbol @ %p\n", frame.AddrPC.Offset);
-        }
+        cur->AddrPC_Offset = frame.AddrPC.Offset;
+        cur->AddrReturn_Offset = frame.AddrReturn.Offset;
 
         if (frame.AddrReturn.Offset == 0) {
             break;
         }
     }
 
+    return (b_stacktrace_handle)(ret);
+}
+
+char* b_stacktrace_to_string(b_stacktrace_handle h) {
+    const b_stacktrace_entry* entries = (b_stacktrace_entry*)h;
+    int i = 0;
+    HANDLE process = GetCurrentProcess();
+    print_buf out = buf_init();
+    IMAGEHLP_SYMBOL64* symbol = (IMAGEHLP_SYMBOL64*)malloc(sizeof(IMAGEHLP_SYMBOL64) + 1024);
+    symbol->SizeOfStruct = sizeof(IMAGEHLP_SYMBOL64);
+    symbol->MaxNameLength = 1024;
+
+    while (1) {
+        IMAGEHLP_LINE64 lineData;
+        DWORD lineOffset = 0;
+        DWORD64 symOffset = 0;
+        const b_stacktrace_entry* cur = entries + i++;
+
+        if (cur->AddrReturn_Offset & B_STACKTRACE_ERROR_FLAG) {
+            DWORD error = cur->AddrReturn_Offset & 0xFFFFFFFF;
+            buf_printf(&out, "StackWalk64 error: %d @ %p\n", error, cur->AddrPC_Offset);
+            break;
+        }
+
+        if (cur->AddrPC_Offset == cur->AddrReturn_Offset) {
+            buf_printf(&out, "Stack overflow @ %p\n", cur->AddrPC_Offset);
+            break;
+        }
+
+        SymGetLineFromAddr64(process, cur->AddrPC_Offset, &lineOffset, &lineData);
+        buf_printf(&out, "%s(%d): ", lineData.FileName, lineData.LineNumber);
+
+        if (SymGetSymFromAddr64(process, cur->AddrPC_Offset, &symOffset, symbol)) {
+            buf_printf(&out, "%s\n", symbol->Name);
+        }
+        else {
+            buf_printf(&out, " Unkown symbol @ %p\n", cur->AddrPC_Offset);
+        }
+
+        if (cur->AddrReturn_Offset == 0) {
+            break;
+        }
+    }
+
+    free(symbol);
     return out.buf;
 }
 
