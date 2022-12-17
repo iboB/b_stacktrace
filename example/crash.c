@@ -1,6 +1,7 @@
 #define B_STACKTRACE_IMPL
 #include "../b_stacktrace.h"
 #include <signal.h>
+#include <stdint.h>
 
 #if defined(_WIN32)
 void my_handler(int signal) {
@@ -35,7 +36,7 @@ void register_handler() {
 #endif
 
 int crasher(int a) {
-    char *p = (char *)0xdeadbeef;
+    char *p = (char *)((uintptr_t)0xdeadbeef);
     *p = 10;  /* CRASH here!! */
     return 2 * a + *p;
 }
