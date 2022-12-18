@@ -146,7 +146,6 @@ char* b_stacktrace_get_string(void) {
 }
 
 #define B_STACKTRACE_MAX_DEPTH 1024
-#define B_STACKTRACE_ERROR_FLAG ((DWORD64)1 << 63)
 
 #if defined(_WIN32)
 
@@ -156,6 +155,8 @@ char* b_stacktrace_get_string(void) {
 #include <DbgHelp.h>
 
 #pragma comment(lib, "DbgHelp.lib")
+
+#define B_STACKTRACE_ERROR_FLAG ((DWORD64)1 << 63)
 
 typedef struct b_stacktrace_entry {
     DWORD64 AddrPC_Offset;
@@ -311,13 +312,23 @@ char* b_stacktrace_get_string(void) {
 #include <dlfcn.h>
 #include <string.h>
 
-char* b_stacktrace_get_string(void) {
-    void* trace[1024];
-    const int traceSize = backtrace(trace, 1024);
-    char** messages = backtrace_symbols(trace, traceSize);
+typedef struct b_stacktrace {
+    void* trace[B_STACKTRACE_MAX_DEPTH];
+    int trace_size;
+} b_stacktrace;
+
+b_stacktrace_handle b_stacktrace_get(void) {
+    b_stacktrace* ret = (b_stacktrace*)malloc(sizeof(b_stacktrace));
+    ret->trace_size = backtrace(ret->trace, B_STACKTRACE_MAX_DEPTH);
+    return (b_stacktrace_handle)(ret);
+}
+
+char* b_stacktrace_to_string(b_stacktrace_handle h) {
+    const b_stacktrace* stacktrace = (b_stacktrace*)h;
+    char** messages = backtrace_symbols(stacktrace=>trace, stacktrace->trace_size);
     print_buf out = buf_init();
 
-    for (int i=0; i<traceSize; ++i) {
+    for (int i = 0; i < stacktrace->trace_size; ++i) {
         char* msg = messages[i];
 
         /* calculate load offset */
@@ -349,7 +360,8 @@ char* b_stacktrace_get_string(void) {
                 if (strstr(line, "?? ")) {
                     /* just output address if nothing can be found */
                     buf_printf(&out, "%p\n", trace[i]);
-                } else {
+                }
+                else {
                     buf_printf(&out, "%s", line);
                 }
             }
@@ -361,6 +373,7 @@ char* b_stacktrace_get_string(void) {
     free(messages);
     return out.buf;
 }
+
 #else
 /* noop implementation */
 char* b_stacktrace_get_string(void) {
