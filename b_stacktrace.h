@@ -283,20 +283,30 @@ char* b_stacktrace_to_string(b_stacktrace_handle h) {
     return out.buf;
 }
 
-#elif defined(__APPLE__)
+#elif !defined(__APPLE__)
 
 #include <execinfo.h>
 #include <unistd.h>
 #include <dlfcn.h>
 
-char* b_stacktrace_get_string(void) {
-    void* trace[128];
-    int traceSize = backtrace(trace, 128);
-    char** messages = backtrace_symbols(trace, traceSize);
+typedef struct b_stacktrace {
+    void* trace[B_STACKTRACE_MAX_DEPTH];
+    int trace_size;
+} b_stacktrace;
+
+b_stacktrace_handle b_stacktrace_get(void) {
+    b_stacktrace* ret = (b_stacktrace*)malloc(sizeof(b_stacktrace));
+    ret->trace_size = backtrace(ret->trace, B_STACKTRACE_MAX_DEPTH);
+    return (b_stacktrace_handle)(ret);
+}
+
+char* b_stacktrace_to_string(b_stacktrace_handle h) {
+    const b_stacktrace* stacktrace = (b_stacktrace*)h;
+    char** messages = backtrace_symbols(stacktrace->trace, stacktrace->trace_size);
     print_buf out = buf_init();
     *out.buf = 0;
 
-    for (int i = 0; i<traceSize; ++i) {
+    for (int i = 0; i < stacktrace->trace_size; ++i) {
         buf_printf(&out, "%s\n", messages[i]);
     }
 
