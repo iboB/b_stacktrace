@@ -325,15 +325,16 @@ b_stacktrace_handle b_stacktrace_get(void) {
 
 char* b_stacktrace_to_string(b_stacktrace_handle h) {
     const b_stacktrace* stacktrace = (b_stacktrace*)h;
-    char** messages = backtrace_symbols(stacktrace=>trace, stacktrace->trace_size);
+    char** messages = backtrace_symbols(stacktrace->trace, stacktrace->trace_size);
     print_buf out = buf_init();
 
     for (int i = 0; i < stacktrace->trace_size; ++i) {
+        void* tracei = stacktrace->trace[i];
         char* msg = messages[i];
 
         /* calculate load offset */
         Dl_info info;
-        dladdr(trace[i], &info);
+        dladdr(tracei, &info);
         if (info.dli_fbase == (void*)0x400000) {
             /* address from executable, so don't offset */
             info.dli_fbase = NULL;
@@ -347,7 +348,7 @@ char* b_stacktrace_to_string(b_stacktrace_handle h) {
             char line[2048];
 
             FILE* fp;
-            snprintf(cmd, 1024, "addr2line -e %s -f -C -p %p 2>/dev/null", messages[i], (void*)((char*)trace[i] - (char*)info.dli_fbase));
+            snprintf(cmd, 1024, "addr2line -e %s -f -C -p %p 2>/dev/null", messages[i], (void*)((char*)tracei - (char*)info.dli_fbase));
 
             fp = popen(cmd, "r");
             if (!fp) {
@@ -359,7 +360,7 @@ char* b_stacktrace_to_string(b_stacktrace_handle h) {
                 buf_printf(&out, "%s: ", messages[i]);
                 if (strstr(line, "?? ")) {
                     /* just output address if nothing can be found */
-                    buf_printf(&out, "%p\n", trace[i]);
+                    buf_printf(&out, "%p\n", tracei);
                 }
                 else {
                     buf_printf(&out, "%s", line);
