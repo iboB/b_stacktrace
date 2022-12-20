@@ -283,7 +283,7 @@ char* b_stacktrace_to_string(b_stacktrace_handle h) {
     return out.buf;
 }
 
-#elif !defined(__APPLE__)
+#elif defined(__APPLE__)
 
 #include <execinfo.h>
 #include <unistd.h>
