@@ -1,31 +1,44 @@
 #if !defined(B_STACKTRACE_INCLUDED)
 #define B_STACKTRACE_INCLUDED (1)
 /*
-b_stacktrace v0.20 -- a cross-platform stack-trace generator
+b_stacktrace v0.21 -- a cross-platform stack-trace generator
 SPDX-License-Identifier: MIT
 URL: https://github.com/iboB/b_stacktrace
 
 Usage
 =====
 
-#define B_STACKTRACE_IMPL in *one* C or C++ file to create the implementation
+#define B_STACKTRACE_IMPL before including b_stacktrace.h in *one* C or C++
+file to create the implementation
 
 #include "b_stacktrace.h" to get access to the following functions:
 
-* char* b_stacktrace_get_string();
+char* b_stacktrace_get_string();
     Returns a human-readable stack-trace string from the point of view of the
     caller.
     The string is allocated with `malloc` and needs to be freed with `free`
 
+b_stacktrace_handle b_stacktrace_get();
+    Returns a stack-trace handle from the point of view of the caller which
+    can be expanded to a string via b_stacktrace_to_string.
+    The handle is allocated with `malloc` and needs to be freed with `free`
+
+b_stacktrace_to_string(b_stacktrace_handle stacktrace);
+    Converts a stack-trace handle to a human-readable string.
+    The string is allocated with `malloc` and needs to be freed with `free`
+
+
 Config
 ======
 
-#define B_STACKTRACE_API to custom export symbols to export the library functions from a shared lib
+#define B_STACKTRACE_API to custom export symbols to export the library
+functions from a shared lib
 
 Revision History
 ================
 
-* 0.20 (2022-12-xx) Beta.
+* 0.21 (2022-12-20) Fixed typo
+* 0.20 (2022-12-18) Beta.
                     Expanded interface
                     Minor fixes
 * 0.10 (2020-12-07) Initial public release. Alpha version
