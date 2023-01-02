@@ -30,4 +30,4 @@ The subdirectory `example/` contains several small examples:
 
 ## License
 
-The library is distributed under the [MIT Software License](http://opensource.org/licenses/MIT). Copyright &copy; 2020-2022 Borislav Stanimirov.
+The library is distributed under the [MIT Software License](http://opensource.org/licenses/MIT). Copyright &copy; 2020-2023 Borislav Stanimirov.
