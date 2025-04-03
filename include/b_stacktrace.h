@@ -27,6 +27,9 @@ b_stacktrace_to_string(b_stacktrace_handle stacktrace);
     Converts a stack-trace handle to a human-readable string.
     The string is allocated with `malloc` and needs to be freed with `free`
 
+B_STACKTRACE_API int b_stacktrace_depth(b_stacktrace_handle stacktrace);
+    Returns the number of entries (frames) in the stack-trace handle.
+
 
 Config
 ======
@@ -86,6 +89,11 @@ typedef struct b_stacktrace_tag* b_stacktrace_handle;
     The handle is allocated with `malloc` and needs to be freed with `free`
 */
 B_STACKTRACE_API b_stacktrace_handle b_stacktrace_get();
+
+/*
+    Returns the number of entries (frames) in the stack-trace handle.
+*/
+B_STACKTRACE_API int b_stacktrace_depth(b_stacktrace_handle stacktrace);
 
 /*
     Converts a stack-trace handle to a human-readable string.
@@ -251,6 +259,18 @@ b_stacktrace_handle b_stacktrace_get(void) {
     return (b_stacktrace_handle)(ret);
 }
 
+int b_stacktrace_depth(b_stacktrace_handle h) {
+    const b_stacktrace_entry* entries = (b_stacktrace_entry*)h;
+    int i = 0;
+    while (1) {
+        const b_stacktrace_entry* cur = entries + i++;
+        if (cur->AddrReturn_Offset == 0) {
+            break;
+        }
+    }
+    return i;
+}
+
 char* b_stacktrace_to_string(b_stacktrace_handle h) {
     const b_stacktrace_entry* entries = (b_stacktrace_entry*)h;
     int i = 0;
@@ -313,6 +333,11 @@ b_stacktrace_handle b_stacktrace_get(void) {
     return (b_stacktrace_handle)(ret);
 }
 
+int b_stacktrace_depth(b_stacktrace_handle h) {
+    const b_stacktrace* stacktrace = (b_stacktrace*)h;
+    return stacktrace->trace_size;
+}
+
 char* b_stacktrace_to_string(b_stacktrace_handle h) {
     const b_stacktrace* stacktrace = (b_stacktrace*)h;
     char** messages = backtrace_symbols(stacktrace->trace, stacktrace->trace_size);
@@ -344,6 +369,11 @@ b_stacktrace_handle b_stacktrace_get(void) {
     b_stacktrace* ret = (b_stacktrace*)malloc(sizeof(b_stacktrace));
     ret->trace_size = backtrace(ret->trace, B_STACKTRACE_MAX_DEPTH);
     return (b_stacktrace_handle)(ret);
+}
+
+int b_stacktrace_depth(b_stacktrace_handle h) {
+    const b_stacktrace* stacktrace = (b_stacktrace*)h;
+    return stacktrace->trace_size;
 }
 
 char* b_stacktrace_to_string(b_stacktrace_handle h) {

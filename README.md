@@ -13,6 +13,7 @@ Including `b_stacktrace.h` provides:
 * `char* b_stacktrace_get_string();`- Returns a human-readable stack-trace string from the point of view of the caller. The string is allocated with `malloc` and needs to be freed with `free`.
 * `b_stacktrace_handle b_stacktrace_get();` - Returns a stack-trace handle from the point of view of the caller which can be expanded to a string via `b_stacktrace_to_string`. The handle is allocated with `malloc` and needs to be freed with `free`.
 * `b_stacktrace_to_string(b_stacktrace_handle stacktrace);` - Converts a stack-trace handle to a human-readable string. The string is allocated with `malloc` and needs to be freed with `free`.
+* `int b_stacktrace_depth(b_stacktrace_handle stacktrace);` - Returns the number of entries (frames) in the stack-trace handle.
 
 `#define B_STACKTRACE_IMPL` before including `b_stacktrace.h` in *one* C or C++ file to create the implementation
 
