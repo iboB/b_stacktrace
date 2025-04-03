@@ -1,7 +1,7 @@
 #if !defined(B_STACKTRACE_INCLUDED)
 #define B_STACKTRACE_INCLUDED (1)
 /*
-b_stacktrace v0.21 -- a cross-platform stack-trace generator
+b_stacktrace v0.23 -- a cross-platform stack-trace generator
 SPDX-License-Identifier: MIT
 URL: https://github.com/iboB/b_stacktrace
 
@@ -40,6 +40,7 @@ functions from a shared lib
 Revision History
 ================
 
+* 0.23 (2022-12-20) Add b_stacktrace_depth
 * 0.21 (2022-12-20) Fixed typo
 * 0.20 (2022-12-18) Beta.
                     Expanded interface
@@ -49,7 +50,7 @@ Revision History
 MIT License
 ===========
 
-Copyright (c) 2020-2023 Borislav Stanimirov
+Copyright (c) 2020-2025 Borislav Stanimirov
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
