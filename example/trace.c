@@ -23,4 +23,5 @@ void first_level(int n) {
 
 int main(int argc, char** argv) {
     first_level(argc);
+    return 0;
 }

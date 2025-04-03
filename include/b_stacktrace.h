@@ -381,8 +381,9 @@ char* b_stacktrace_to_string(b_stacktrace_handle h) {
     const b_stacktrace* stacktrace = (b_stacktrace*)h;
     char** messages = backtrace_symbols(stacktrace->trace, stacktrace->trace_size);
     print_buf out = buf_init();
+    int i;
 
-    for (int i = 0; i < stacktrace->trace_size; ++i) {
+    for (i = 0; i < stacktrace->trace_size; ++i) {
         void* tracei = stacktrace->trace[i];
         char* msg = messages[i];
 
